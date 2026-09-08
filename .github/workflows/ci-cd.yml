@@ -1,0 +1,90 @@
+name: CI/CD Pipeline - longwarp-auth
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  # =========================================================================
+  # CI: Test, Validate Schema & Build
+  # =========================================================================
+  ci:
+    name: Build & Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Validate Prisma Schema
+        run: npx prisma validate
+
+      - name: Generate Prisma Client & Compile TypeScript
+        run: npm run build
+
+  # =========================================================================
+  # CD: Deploy to Oracle Server
+  # Runs only on push to main/master after CI passes
+  # =========================================================================
+  deploy:
+    name: Deploy to Oracle VM
+    needs: ci
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH to Oracle Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          port: ${{ secrets.ORACLE_PORT || 22 }}
+          script: |
+            set -e
+            echo "🚀 Deploying longwarp-auth on Oracle VM..."
+
+            # Navigate to deployment directory (configure in Oracle VM)
+            DEPLOY_DIR=${{ secrets.ORACLE_DEPLOY_DIR || '/var/www/longwarp-auth' }}
+            mkdir -p $DEPLOY_DIR
+            cd $DEPLOY_DIR
+
+            # If git repo already cloned, pull latest changes, else clone
+            if [ -d .git ]; then
+              git fetch origin main
+              git reset --hard origin/main
+            else
+              git clone https://github.com/${{ github.repository }}.git .
+            fi
+
+            # Install dependencies and build
+            npm ci --production=false
+            npm run build
+
+            # Apply database migrations
+            # Note: Production .env must reside on the server at /var/www/longwarp-auth/.env
+            if [ -f .env ]; then
+              echo "Applying database migrations..."
+              npx prisma db push --skip-generate || npx prisma migrate deploy
+            else
+              echo "⚠️ WARNING: .env file not found in $DEPLOY_DIR. Please create it with production secrets."
+            fi
+
+            # Reload service with PM2 (or systemd if configured)
+            if command -v pm2 &> /dev/null; then
+              pm2 reload ecosystem.config.cjs || pm2 start ecosystem.config.cjs
+              pm2 save
+            elif systemctl is-active --quiet longwarp-auth; then
+              sudo systemctl restart longwarp-auth
+            fi
+
+            echo "✅ longwarp-auth deployment completed successfully!"

@@ -1,0 +1,40 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String          @id @default(uuid())
+  googleId      String          @unique @map("google_id")
+  email         String          @unique
+  displayName   String?         @map("display_name")
+  avatarUrl     String?         @map("avatar_url")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  lastLoginAt   DateTime        @default(now()) @map("last_login_at")
+  
+  // Relations to sub-service data
+  shabuSessions ShabuSession[]
+
+  @@map("users")
+}
+
+model ShabuSession {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionDate   DateTime @default(now()) @map("session_date")
+  totalTrays    Int      @map("total_trays")
+  totalCalories Int      @map("total_calories")
+  proteinG      Float    @map("protein_g")
+  carbsG        Float    @map("carbs_g")
+  fatG          Float    @map("fat_g")
+  costThb       Float    @default(299.00) @map("cost_thb")
+  itemsJson     Json     @map("items_json")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("shabu_dining_sessions")
+}
