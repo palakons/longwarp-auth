@@ -81,12 +81,42 @@ router.get('/api/shabu/sessions', requireAuth, async (req: Request, res: Respons
     });
 
     res.json({
+      success: true,
       sessions,
     });
   } catch (error: any) {
     console.error('Error fetching shabu sessions:', error);
     res.status(500).json({
       error: 'Failed to retrieve shabu sessions',
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * DELETE /api/shabu/sessions/:id
+ * Delete a dining session by ID for the authenticated user
+ */
+router.delete('/api/shabu/sessions/:id', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const sessionId = req.params.id;
+    const userId = req.user!.id;
+
+    await prisma.shabuSession.deleteMany({
+      where: {
+        id: sessionId,
+        userId,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Session deleted',
+    });
+  } catch (error: any) {
+    console.error('Failed to delete session:', error);
+    return res.status(500).json({
+      error: 'Failed to delete session',
       details: error.message,
     });
   }
