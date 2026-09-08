@@ -42,6 +42,8 @@ export const createApp = () => {
         return callback(new Error(`CORS policy does not allow access from ${origin}`));
       },
       credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     })
   );
 

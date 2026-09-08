@@ -7,6 +7,7 @@ const router = Router();
 /**
  * POST /api/shabu/sessions
  * Record a new shabu dining session for the authenticated user
+ * Supports Authorization: Bearer <token> header or session cookie
  */
 router.post('/api/shabu/sessions', requireAuth, async (req: Request, res: Response) => {
   try {
@@ -22,9 +23,16 @@ router.post('/api/shabu/sessions', requireAuth, async (req: Request, res: Respon
       sessionDate,
     } = req.body;
 
-    if (totalTrays === undefined || totalCalories === undefined || proteinG === undefined || carbsG === undefined || fatG === undefined) {
+    if (
+      totalTrays === undefined ||
+      totalCalories === undefined ||
+      proteinG === undefined ||
+      carbsG === undefined ||
+      fatG === undefined
+    ) {
       res.status(400).json({
-        error: 'Missing required session metrics: totalTrays, totalCalories, proteinG, carbsG, and fatG are required.',
+        error:
+          'Missing required session metrics: totalTrays, totalCalories, proteinG, carbsG, and fatG are required.',
       });
       return;
     }
@@ -45,6 +53,7 @@ router.post('/api/shabu/sessions', requireAuth, async (req: Request, res: Respon
 
     res.status(201).json({
       success: true,
+      sessionId: session.id,
       session,
     });
   } catch (error: any) {

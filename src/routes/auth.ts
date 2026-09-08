@@ -3,7 +3,11 @@ import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import prisma from '../db';
-import { requireAuth, sendAuthCookie, clearAuthCookie } from '../middleware/auth';
+import {
+  authenticateUser,
+  sendAuthCookie,
+  clearAuthCookie,
+} from '../middleware/auth';
 
 const router = Router();
 
@@ -15,7 +19,7 @@ const getOAuth2Client = (): OAuth2Client => {
   );
 };
 
-// Validate redirect target to prevent open redirect vulnerabilities
+// Validate redirect target to allow longwarp.com subdomains and local dev origins
 const sanitizeRedirectUrl = (redirectUrl?: string): string => {
   if (!redirectUrl) {
     return 'https://shabu.longwarp.com';
@@ -23,7 +27,7 @@ const sanitizeRedirectUrl = (redirectUrl?: string): string => {
 
   try {
     const parsed = new URL(redirectUrl);
-    // Allow longwarp.com domains, its subdomains, and localhost/127.0.0.1 for local dev
+    // Allow longwarp.com domains, its subdomains, and localhost/127.0.0.1 for local dev (any port)
     const isAllowedDomain =
       parsed.hostname === 'longwarp.com' ||
       parsed.hostname.endsWith('.longwarp.com') ||
@@ -75,7 +79,8 @@ router.get('/auth/google', (req: Request, res: Response) => {
 
 /**
  * GET /auth/google/callback
- * Handles Google OAuth callback, upserts user, sets auth cookie, and redirects
+ * Handles Google OAuth callback, upserts user, sets auth cookie,
+ * and redirects back to target app with user info and JWT in query params
  */
 router.get('/auth/google/callback', async (req: Request, res: Response) => {
   const { code, state, error } = req.query;
@@ -172,9 +177,23 @@ router.get('/auth/google/callback', async (req: Request, res: Response) => {
       { expiresIn: config.jwt.expiresIn }
     );
 
+    // Set HTTP-Only cookie for same-origin & subdomain requests
     sendAuthCookie(res, token);
 
-    res.redirect(redirectTarget);
+    // Format user payload for cross-origin client redirect query parameters
+    const userPayload = encodeURIComponent(
+      JSON.stringify({
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName || null,
+        avatarUrl: user.avatarUrl || null,
+      })
+    );
+
+    const separator = redirectTarget.includes('?') ? '&' : '?';
+    const finalRedirectUrl = `${redirectTarget}${separator}user=${userPayload}&token=${token}`;
+
+    res.redirect(finalRedirectUrl);
   } catch (err: any) {
     console.error('Google OAuth callback error:', err);
     res.status(500).send(`Authentication failed: ${err.message || 'Internal Server Error'}`);
@@ -183,18 +202,34 @@ router.get('/auth/google/callback', async (req: Request, res: Response) => {
 
 /**
  * GET /auth/me
- * Returns authenticated user profile or 401
+ * Session check supporting BOTH 'Authorization: Bearer <token>' header and session cookies.
+ * Returns HTTP 200 with authenticated: true / false
  */
-router.get('/auth/me', requireAuth, (req: Request, res: Response) => {
+router.get('/auth/me', async (req: Request, res: Response) => {
+  const user = await authenticateUser(req);
+
+  if (user) {
+    res.json({
+      authenticated: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+      },
+    });
+    return;
+  }
+
   res.json({
-    authenticated: true,
-    user: req.user,
+    authenticated: false,
+    user: null,
   });
 });
 
 /**
  * POST /auth/logout
- * Clears HTTP-only authentication cookie
+ * Clears HTTP-only authentication cookie and returns { success: true }
  */
 router.post('/auth/logout', (_req: Request, res: Response) => {
   clearAuthCookie(res);

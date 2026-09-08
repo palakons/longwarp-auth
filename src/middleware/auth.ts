@@ -44,18 +44,17 @@ export const clearAuthCookie = (res: Response) => {
   });
 };
 
-export const requireAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+/**
+ * Extracts and verifies token from Authorization header or cookie
+ */
+export const authenticateUser = async (req: Request): Promise<AuthenticatedUser | null> => {
   try {
     const token =
-      req.cookies?.[config.cookie.name] ||
-      req.headers.authorization?.replace(/^Bearer\s+/i, '');
+      req.headers.authorization?.replace(/^Bearer\s+/i, '') ||
+      req.cookies?.[config.cookie.name];
 
     if (!token) {
-      res.status(401).json({
-        authenticated: false,
-        error: 'Authentication required. No session token provided.',
-      });
-      return;
+      return null;
     }
 
     const decoded = jwt.verify(token, config.jwt.secret) as AuthJwtPayload;
@@ -70,21 +69,26 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       },
     });
 
-    if (!user) {
-      clearAuthCookie(res);
-      res.status(401).json({
-        authenticated: false,
-        error: 'User not found or session invalid.',
-      });
-      return;
-    }
+    return user || null;
+  } catch {
+    return null;
+  }
+};
 
-    req.user = user;
-    next();
-  } catch (error) {
+/**
+ * Middleware requiring authentication. Returns 401 if unauthenticated.
+ */
+export const requireAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const user = await authenticateUser(req);
+
+  if (!user) {
     res.status(401).json({
       authenticated: false,
-      error: 'Invalid or expired authentication token.',
+      error: 'Authentication required. No valid session token or authorization header provided.',
     });
+    return;
   }
+
+  req.user = user;
+  next();
 };

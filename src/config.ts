@@ -38,7 +38,10 @@ export const config = {
   },
 
   cors: {
-    allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://shabu.longwarp.com,https://toll.longwarp.com,https://trade.longwarp.com')
+    allowedOrigins: (
+      process.env.ALLOWED_ORIGINS ||
+      'http://127.0.0.1:3002,http://localhost:3002,http://localhost:4000,http://localhost:3000,https://shabu.longwarp.com,https://toll.longwarp.com,https://trade.longwarp.com'
+    )
       .split(',')
       .map(origin => origin.trim())
       .filter(Boolean),
