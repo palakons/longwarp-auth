@@ -38,3 +38,15 @@ model ShabuSession {
 
   @@map("shabu_dining_sessions")
 }
+
+model ShabuUsageEvent {
+  id            String   @id @default(uuid())
+  eventType     String   @map("event_type")
+  userId        String?  @map("user_id")
+  anonSessionId String   @map("anon_session_id")
+  metadata      String?  @map("metadata")
+  ipAddress     String?  @map("ip_address")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("shabu_usage_events")
+}
