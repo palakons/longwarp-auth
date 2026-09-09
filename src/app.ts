@@ -5,6 +5,7 @@ import { config } from './config';
 import healthRouter from './routes/health';
 import authRouter from './routes/auth';
 import shabuRouter from './routes/shabu';
+import adminRouter from './routes/admin';
 
 export const createApp = () => {
   const app = express();
@@ -51,6 +52,7 @@ export const createApp = () => {
   app.use(healthRouter);
   app.use(authRouter);
   app.use(shabuRouter);
+  app.use(adminRouter);
 
   // 404 handler
   app.use((_req: Request, res: Response) => {
