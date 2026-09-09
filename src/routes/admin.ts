@@ -507,12 +507,60 @@ router.get('/admin', async (req: Request, res: Response) => {
               <tr><td colspan="4" style="text-align:center; color:var(--text-muted);">Loading sessions...</td></tr>
             </tbody>
           </table>
+    <!-- 5. User Feedback Panel -->
+    <div style="margin-top: 28px;">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">💬 User Feedback & Suggestions</div>
+          <div class="panel-count" id="count-feedback">0 reviews</div>
+        </div>
+        <div id="list-feedback" style="display: flex; flex-direction: column; gap: 12px; max-height: 380px; overflow-y: auto;">
+          <p style="color:var(--text-muted); font-size:13px;">Loading feedback...</p>
         </div>
       </div>
     </div>
   </div>
 
   <script>
+    async function loadFeedback() {
+      try {
+        const res = await fetch('/api/shabu/admin/feedback');
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = data.feedback || [];
+        document.getElementById('count-feedback').innerText = list.length + ' entries';
+        const container = document.getElementById('list-feedback');
+        if (list.length === 0) {
+          container.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">No feedback submitted yet.</p>';
+          return;
+        }
+        container.innerHTML = list.map(f => {
+          const stars = '★'.repeat(f.rating || 5) + '☆'.repeat(Math.max(0, 5 - (f.rating || 5)));
+          const catColors = {
+            feature_request: 'rgba(88, 166, 255, 0.2); color: #58a6ff;',
+            bug_report: 'rgba(248, 81, 73, 0.2); color: #f85149;',
+            macro_accuracy: 'rgba(240, 136, 62, 0.2); color: #f0883e;',
+            general: 'rgba(63, 185, 80, 0.2); color: #3fb950;'
+          };
+          const style = catColors[f.category] || catColors.general;
+          return \`
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; \${style}">\${escapeHtml(f.category || 'general')}</span>
+                  <span style="color: #e3b341; font-size: 13px;">\${stars}</span>
+                </div>
+                <span style="font-size: 11px; color: var(--text-muted);">\${new Date(f.createdAt).toLocaleString()}</span>
+              </div>
+              <p style="font-size: 13px; line-height: 1.5; color: var(--text); margin-bottom: 6px;">\${escapeHtml(f.message)}</p>
+              \${f.contactInfo ? \`<div style="font-size: 11px; color: var(--text-muted);">Contact: <span style="color: var(--accent);">\${escapeHtml(f.contactInfo)}</span></div>\` : ''}
+            </div>
+          \`;
+        }).join('');
+      } catch (err) {
+        console.error('Failed to load feedback:', err);
+      }
+    }
     async function loadStats() {
       try {
         const res = await fetch('/api/shabu/admin/stats');
@@ -643,7 +691,11 @@ router.get('/admin', async (req: Request, res: Response) => {
 
     // Initial load and 10s auto-refresh
     loadStats();
-    setInterval(loadStats, 10000);
+    loadFeedback();
+    setInterval(() => {
+      loadStats();
+      loadFeedback();
+    }, 10000);
   </script>
 </body>
 </html>

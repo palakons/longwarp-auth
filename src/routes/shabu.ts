@@ -310,4 +310,88 @@ router.get('/api/shabu/admin/stats', requireAuth, async (req: Request, res: Resp
   }
 });
 
+/**
+ * POST /api/shabu/feedback
+ * Submit user feedback, suggestions, or bug reports (guests or members)
+ */
+router.post('/api/shabu/feedback', async (req: Request, res: Response) => {
+  try {
+    const { category, rating, message, contactInfo, anonSessionId } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Feedback message is required' });
+    }
+
+    let userId: string | null = null;
+    const user = await authenticateUser(req);
+    if (user) {
+      userId = user.id;
+    }
+
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const ipAddress = Array.isArray(rawIp)
+      ? rawIp[0]
+      : typeof rawIp === 'string'
+      ? rawIp.split(',')[0].trim()
+      : null;
+
+    const userAgent = req.headers['user-agent'] || null;
+
+    const feedback = await prisma.shabuFeedback.create({
+      data: {
+        category: category || 'general',
+        rating: typeof rating === 'number' ? Math.min(Math.max(rating, 1), 5) : 5,
+        message: message.trim(),
+        contactInfo: contactInfo ? String(contactInfo).trim().slice(0, 150) : null,
+        userId: userId || null,
+        anonSessionId: anonSessionId || 'anon',
+        userAgent: userAgent ? String(userAgent).slice(0, 500) : null,
+        ipAddress: ipAddress ? String(ipAddress).slice(0, 45) : null,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Feedback submitted successfully',
+      feedbackId: feedback.id,
+    });
+  } catch (error: any) {
+    console.error('Feedback submit error:', error);
+    return res.status(500).json({
+      error: 'Failed to submit feedback',
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/shabu/admin/feedback
+ * Retrieve submitted user feedback restricted to palakons@gmail.com
+ */
+router.get('/api/shabu/admin/feedback', requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!req.user || req.user.email !== 'palakons@gmail.com') {
+      return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+    }
+
+    const feedbackList = await prisma.shabuFeedback.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: feedbackList.length,
+      feedback: feedbackList,
+    });
+  } catch (error: any) {
+    console.error('Admin feedback fetch error:', error);
+    return res.status(500).json({
+      error: 'Failed to fetch feedback list',
+      details: error.message,
+    });
+  }
+});
+
 export default router;
+

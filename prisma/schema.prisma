@@ -50,3 +50,18 @@ model ShabuUsageEvent {
 
   @@map("shabu_usage_events")
 }
+
+model ShabuFeedback {
+  id            String   @id @default(uuid())
+  userId        String?  @map("user_id")
+  anonSessionId String   @map("anon_session_id")
+  category      String   @default("general") @map("category")
+  rating        Int      @default(5) @map("rating")
+  message       String   @map("message")
+  contactInfo   String?  @map("contact_info")
+  userAgent     String?  @map("user_agent")
+  ipAddress     String?  @map("ip_address")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("shabu_feedback")
+}
