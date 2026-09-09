@@ -10,7 +10,7 @@ const router = Router();
 router.get('/admin', async (req: Request, res: Response) => {
   const user = await authenticateUser(req);
 
-  // If not authenticated or not palakons@gmail.com, render login prompt or access denied
+  // If not authenticated, render login prompt
   if (!user) {
     res.send(`
 <!DOCTYPE html>
@@ -106,6 +106,7 @@ router.get('/admin', async (req: Request, res: Response) => {
     return;
   }
 
+  // If not admin email
   if (user.email !== 'palakons@gmail.com') {
     res.status(403).send(`
 <!DOCTYPE html>
@@ -118,7 +119,6 @@ router.get('/admin', async (req: Request, res: Response) => {
     .card { background: #161b22; border: 1px solid #f85149; border-radius: 12px; padding: 32px; max-width: 440px; text-align: center; }
     h1 { color: #f85149; margin-bottom: 12px; }
     p { color: #8b949e; margin-bottom: 20px; line-height: 1.5; }
-    a { color: #58a6ff; text-decoration: none; }
   </style>
 </head>
 <body>
@@ -135,7 +135,7 @@ router.get('/admin', async (req: Request, res: Response) => {
     return;
   }
 
-  // Admin is authenticated! Render the live stats dashboard
+  // Admin is authenticated! Render the comprehensive stats dashboard
   res.send(`
 <!DOCTYPE html>
 <html lang="en">
@@ -154,18 +154,19 @@ router.get('/admin', async (req: Request, res: Response) => {
       --green: #3fb950;
       --purple: #bc8cff;
       --orange: #f0883e;
+      --pink: #f778ba;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body {
       background: var(--bg);
       background-image: 
-        radial-gradient(circle at 15% 15%, rgba(88, 166, 255, 0.07), transparent 40%),
-        radial-gradient(circle at 85% 25%, rgba(188, 140, 255, 0.07), transparent 40%);
+        radial-gradient(circle at 15% 15%, rgba(88, 166, 255, 0.08), transparent 40%),
+        radial-gradient(circle at 85% 25%, rgba(188, 140, 255, 0.08), transparent 40%);
       color: var(--text);
       min-height: 100vh;
       padding: 30px 24px;
     }
-    .container { max-width: 1200px; margin: 0 auto; }
+    .container { max-width: 1240px; margin: 0 auto; }
     
     header {
       display: flex;
@@ -227,33 +228,40 @@ router.get('/admin', async (req: Request, res: Response) => {
     .btn-logout:hover { color: #f85149; border-color: #f85149; }
 
     /* Stats Grid */
+    .section-title {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 20px;
-      margin-bottom: 36px;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
     }
     .stat-card {
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 14px;
-      padding: 22px 20px;
+      padding: 20px 18px;
       backdrop-filter: blur(10px);
       box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-      transition: transform 0.2s;
     }
-    .stat-card:hover { transform: translateY(-2px); }
-    .stat-label { font-size: 13px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-    .stat-value { font-size: 32px; font-weight: 700; color: #fff; line-height: 1; margin-bottom: 6px; }
+    .stat-label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .stat-value { font-size: 28px; font-weight: 700; color: #fff; line-height: 1.1; margin-bottom: 4px; }
     .stat-sub { font-size: 12px; color: var(--text-muted); }
 
-    /* Tables Grid */
-    .tables-grid {
+    /* Two column grid */
+    .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 24px;
+      gap: 20px;
+      margin-bottom: 28px;
     }
-    @media (max-width: 900px) { .tables-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
 
     .panel {
       background: var(--card-bg);
@@ -268,11 +276,62 @@ router.get('/admin', async (req: Request, res: Response) => {
       align-items: center;
       margin-bottom: 16px;
     }
-    .panel-title { font-size: 16px; font-weight: 700; }
+    .panel-title { font-size: 15px; font-weight: 700; }
     .panel-count { font-size: 12px; background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 12px; color: var(--text-muted); }
 
+    /* Dish Rank Bars */
+    .dish-list { display: flex; flex-direction: column; gap: 12px; }
+    .dish-item { display: flex; flex-direction: column; gap: 4px; }
+    .dish-header { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; }
+    .dish-bar-bg { width: 100%; height: 8px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden; }
+    .dish-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--purple)); border-radius: 6px; }
+
+    /* Hourly Chart */
+    .hourly-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 120px;
+      padding-top: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+    .hour-bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+      position: relative;
+    }
+    .hour-bar {
+      width: 100%;
+      min-height: 2px;
+      background: rgba(88, 166, 255, 0.4);
+      border-radius: 3px 3px 0 0;
+      transition: height 0.3s ease;
+    }
+    .hour-bar.peak { background: var(--orange); }
+    .hour-label { font-size: 9px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Pills & Tables */
+    .pill-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .pill b { color: var(--accent); }
+
     .table-container {
-      max-height: 480px;
+      max-height: 360px;
       overflow-y: auto;
       border: 1px solid rgba(48, 54, 61, 0.4);
       border-radius: 8px;
@@ -288,27 +347,17 @@ router.get('/admin', async (req: Request, res: Response) => {
     }
     td { padding: 12px 14px; border-bottom: 1px solid rgba(48, 54, 61, 0.3); }
     tr:hover td { background: rgba(88, 166, 255, 0.04); }
-
-    .pill {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-    .pill-event { background: rgba(88, 166, 255, 0.15); color: var(--accent); }
-    .pill-session { background: rgba(63, 185, 80, 0.15); color: var(--green); }
-    .timestamp { font-size: 11px; color: var(--text-muted); }
+    .badge-event { background: rgba(88, 166, 255, 0.15); color: var(--accent); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
       <div class="brand">
-        <div class="brand-icon">⚡</div>
+        <div class="brand-icon">🍲</div>
         <div>
-          <h1>Longwarp Auth & Telemetry</h1>
-          <p>Shabu Buffet Tracker Activity Dashboard</p>
+          <h1>Longwarp Shabu Telemetry & Analytics</h1>
+          <p>Real-time Eating Insights & Privacy-Preserving Usage Metrics</p>
         </div>
       </div>
 
@@ -322,41 +371,104 @@ router.get('/admin', async (req: Request, res: Response) => {
       </div>
     </header>
 
-    <!-- Real-time Stats Cards -->
+    <!-- 1. High Level Traffic Cards -->
+    <div class="section-title">Traffic & Sessions Overview</div>
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-label">Page Views</div>
+        <div class="stat-label">Total Visits</div>
         <div class="stat-value" id="val-pageviews" style="color: var(--accent)">...</div>
-        <div class="stat-sub">Tracked via telemetry</div>
+        <div class="stat-sub">Page views recorded</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Unique Visitors</div>
+        <div class="stat-label">Unique Devices</div>
         <div class="stat-value" id="val-visitors" style="color: var(--purple)">...</div>
-        <div class="stat-sub">Distinct device sessions</div>
+        <div class="stat-sub">Anonymous device sessions</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Saved Buffets</div>
+        <div class="stat-label">Buffet Meals Logged</div>
         <div class="stat-value" id="val-sessions" style="color: var(--green)">...</div>
-        <div class="stat-sub">Total logged meal sessions</div>
+        <div class="stat-sub">Saved dining sessions</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Total Calories</div>
         <div class="stat-value" id="val-calories" style="color: var(--orange)">...</div>
-        <div class="stat-sub">kcal consumed across users</div>
+        <div class="stat-sub">kcal consumed across all meals</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Total Protein</div>
-        <div class="stat-value" id="val-protein">...</div>
+        <div class="stat-value" id="val-protein" style="color: var(--pink)">...</div>
         <div class="stat-sub">grams protein tracked</div>
       </div>
     </div>
 
-    <!-- Tables Grid -->
-    <div class="tables-grid">
-      <!-- Recent Telemetry Events -->
+    <!-- 2. Dining Habits & Averages -->
+    <div class="section-title">Dining Habits & Benchmark Averages</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Avg Trays / Meal</div>
+        <div class="stat-value" id="val-avg-trays" style="color: var(--green)">...</div>
+        <div class="stat-sub">Trays eaten per person</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Calories / Meal</div>
+        <div class="stat-value" id="val-avg-calories" style="color: var(--orange)">...</div>
+        <div class="stat-sub">kcal intake per session</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Protein / Meal</div>
+        <div class="stat-value" id="val-avg-protein">...</div>
+        <div class="stat-sub">grams protein per session</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Cost / Person</div>
+        <div class="stat-value" id="val-avg-cost" style="color: var(--accent)">...</div>
+        <div class="stat-sub">THB buffet tier price</div>
+      </div>
+    </div>
+
+    <!-- 3. Top Dishes & Peak Hours Grid -->
+    <div class="grid-2">
+      <!-- Most Popular Dishes -->
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">Recent Telemetry Events</div>
+          <div class="panel-title">🏆 Top 10 Favorite Dishes</div>
+          <div class="panel-count" id="count-dishes">0 items</div>
+        </div>
+        <div class="dish-list" id="list-dishes">
+          <p style="color:var(--text-muted); font-size:13px;">Loading favorite dishes...</p>
+        </div>
+      </div>
+
+      <!-- Peak Dining Times -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">⏰ Peak Dining Hours (24h)</div>
+          <div class="panel-count">Lunch vs Dinner</div>
+        </div>
+        <div class="hourly-chart" id="chart-hours">
+          <!-- Bars generated via JS -->
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); margin-bottom: 16px;">
+          <span>Midnight (00:00)</span>
+          <span>Lunch (12:00)</span>
+          <span>Dinner (19:00)</span>
+          <span>23:00</span>
+        </div>
+
+        <div style="border-top: 1px solid var(--border); padding-top: 14px;">
+          <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:var(--text-muted);">CLIENT & PLATFORM BREAKDOWN:</div>
+          <div class="pill-group" id="pill-devices">
+            <!-- Device Pills -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Tables Grid (Recent Telemetry & Sessions) -->
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">📡 Real-Time Telemetry Stream</div>
           <div class="panel-count" id="count-events">0 events</div>
         </div>
         <div class="table-container">
@@ -364,7 +476,7 @@ router.get('/admin', async (req: Request, res: Response) => {
             <thead>
               <tr>
                 <th>Event</th>
-                <th>User / Session</th>
+                <th>Device</th>
                 <th>IP</th>
                 <th>Time</th>
               </tr>
@@ -376,10 +488,9 @@ router.get('/admin', async (req: Request, res: Response) => {
         </div>
       </div>
 
-      <!-- Recent Dining Sessions -->
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">Recent Dining Sessions</div>
+          <div class="panel-title">🥩 Recent Buffet Sessions</div>
           <div class="panel-count" id="count-sessions">0 sessions</div>
         </div>
         <div class="table-container">
@@ -416,39 +527,100 @@ router.get('/admin', async (req: Request, res: Response) => {
         const data = await res.json();
         const s = data.stats || {};
 
+        // Top summary
         document.getElementById('val-pageviews').innerText = Number(s.totalPageViews || 0).toLocaleString();
         document.getElementById('val-visitors').innerText = Number(s.totalUniqueVisitors || 0).toLocaleString();
         document.getElementById('val-sessions').innerText = Number(s.totalSessionsSaved || 0).toLocaleString();
         document.getElementById('val-calories').innerText = Number(s.totalCaloriesTracked || 0).toLocaleString();
         document.getElementById('val-protein').innerText = Number(s.totalProteinTracked || 0).toLocaleString() + 'g';
 
-        // Render Events
+        // Averages
+        document.getElementById('val-avg-trays').innerText = s.avgTraysPerMeal || 0;
+        document.getElementById('val-avg-calories').innerText = Number(s.avgCaloriesPerMeal || 0).toLocaleString() + ' kcal';
+        document.getElementById('val-avg-protein').innerText = (s.avgProteinPerMeal || 0) + 'g';
+        document.getElementById('val-avg-cost').innerText = '฿' + (s.avgCostPerMeal || 299);
+
+        // Top Dishes
+        const dishes = data.topDishes || [];
+        document.getElementById('count-dishes').innerText = dishes.length + ' ranked';
+        const dishContainer = document.getElementById('list-dishes');
+        if (dishes.length === 0) {
+          dishContainer.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">No dish items logged yet.</p>';
+        } else {
+          const maxCount = Math.max(...dishes.map(d => d.count), 1);
+          dishContainer.innerHTML = dishes.map((d, idx) => {
+            const pct = Math.round((d.count / maxCount) * 100);
+            return \`
+              <div class="dish-item">
+                <div class="dish-header">
+                  <span>#\${idx + 1} \${escapeHtml(d.name)}</span>
+                  <span style="color:var(--accent);">\${d.count} trays</span>
+                </div>
+                <div class="dish-bar-bg">
+                  <div class="dish-bar-fill" style="width: \${pct}%"></div>
+                </div>
+              </div>
+            \`;
+          }).join('');
+        }
+
+        // Peak Hours Chart
+        const hourly = data.hourlyDistribution || {};
+        const maxHourly = Math.max(...Object.values(hourly), 1);
+        const chart = document.getElementById('chart-hours');
+        let chartHtml = '';
+        for (let h = 0; h < 24; h++) {
+          const count = hourly[h] || 0;
+          const pct = Math.max(Math.round((count / maxHourly) * 100), 4);
+          const isPeak = (h >= 11 && h <= 13) || (h >= 17 && h <= 20);
+          chartHtml += \`
+            <div class="hour-bar-col" title="\${h}:00 - \${count} events">
+              <div class="hour-bar \${isPeak ? 'peak' : ''}" style="height: \${pct}%"></div>
+              <span class="hour-label">\${h}</span>
+            </div>
+          \`;
+        }
+        chart.innerHTML = chartHtml;
+
+        // Devices & Browsers Pills
+        const dev = data.deviceBreakdown || {};
+        const devPills = document.getElementById('pill-devices');
+        devPills.innerHTML = \`
+          <span class="pill">📱 Mobile: <b>\${dev.mobile || 0}</b></span>
+          <span class="pill">💻 Desktop: <b>\${dev.desktop || 0}</b></span>
+          <span class="pill">📟 Tablet: <b>\${dev.tablet || 0}</b></span>
+          <span class="pill">👥 Members vs Guests: <b>\${s.guestVsMemberRatio?.member || 0} / \${s.guestVsMemberRatio?.guest || 0}</b></span>
+          <span class="pill">🔬 Macro Views: <b>\${s.featureEngagement?.macroViews || 0}</b></span>
+          <span class="pill">📤 Shares: <b>\${s.featureEngagement?.shareClicks || 0}</b></span>
+        \`;
+
+        // Telemetry Events Table
         const events = data.recentEvents || [];
         document.getElementById('count-events').innerText = events.length + ' events';
         const eventsTbody = document.getElementById('body-events');
         if (events.length === 0) {
-          eventsTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">No telemetry events yet</td></tr>';
+          eventsTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">No events recorded</td></tr>';
         } else {
           eventsTbody.innerHTML = events.map(e => \`
             <tr>
-              <td><span class="pill pill-event">\${escapeHtml(e.eventType || 'unknown')}</span></td>
-              <td><span style="font-family:monospace; font-size:11px;">\${e.userId ? '👤 ' + e.userId.slice(0, 8) + '...' : '👻 ' + (e.anonSessionId || '').slice(0, 8) + '...'}</span></td>
+              <td><span class="badge-event">\${escapeHtml(e.eventType)}</span></td>
+              <td><span style="font-family:monospace; font-size:11px;">\${e.userId ? '👤 Member' : '👻 Guest'}</span></td>
               <td style="color:var(--text-muted); font-size:11px;">\${e.ipAddress || '-'}</td>
-              <td class="timestamp">\${new Date(e.createdAt).toLocaleTimeString()}</td>
+              <td style="font-size:11px; color:var(--text-muted);">\${new Date(e.createdAt).toLocaleTimeString()}</td>
             </tr>
           \`).join('');
         }
 
-        // Render Sessions
+        // Sessions Table
         const sessions = data.recentSessions || [];
         document.getElementById('count-sessions').innerText = sessions.length + ' sessions';
         const sessionsTbody = document.getElementById('body-sessions');
         if (sessions.length === 0) {
-          sessionsTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">No saved sessions yet</td></tr>';
+          sessionsTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted);">No saved sessions</td></tr>';
         } else {
           sessionsTbody.innerHTML = sessions.map(s => \`
             <tr>
-              <td><span class="pill pill-session">\${new Date(s.sessionDate || s.createdAt).toLocaleDateString()}</span></td>
+              <td>\${new Date(s.sessionDate || s.createdAt).toLocaleDateString()}</td>
               <td><b>\${s.totalTrays}</b> trays</td>
               <td>\${Number(s.totalCalories).toLocaleString()} kcal</td>
               <td style="color:var(--green); font-weight:600;">฿\${s.costThb}</td>

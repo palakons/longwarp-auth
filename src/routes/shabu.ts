@@ -191,18 +191,89 @@ router.get('/api/shabu/admin/stats', requireAuth, async (req: Request, res: Resp
       _sum: {
         totalCalories: true,
         proteinG: true,
+        carbsG: true,
+        fatG: true,
+        totalTrays: true,
+      },
+      _avg: {
+        totalCalories: true,
+        proteinG: true,
+        totalTrays: true,
+        costThb: true,
       },
     });
 
+    // Fetch recent events and sessions for analysis
     const recentEvents = await prisma.shabuUsageEvent.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      take: 200,
     });
 
     const recentSessions = await prisma.shabuSession.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      take: 100,
     });
+
+    // 1. Top Dishes Aggregate (from sessions itemsJson)
+    const dishCounts: Record<string, { name: string; count: number; calories: number }> = {};
+    for (const session of recentSessions) {
+      const items = Array.isArray(session.itemsJson) ? session.itemsJson : [];
+      for (const item of items as any[]) {
+        const dishId = item.id || item.name_th || 'unknown';
+        const dishName = item.name_th || item.name || dishId;
+        const count = Number(item.count || 1);
+        const cal = Number(item.calories || 0);
+
+        if (!dishCounts[dishId]) {
+          dishCounts[dishId] = { name: dishName, count: 0, calories: 0 };
+        }
+        dishCounts[dishId].count += count;
+        dishCounts[dishId].calories += cal;
+      }
+    }
+    const topDishes = Object.values(dishCounts)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // 2. Peak Hours (0-23)
+    const hourlyCounts: Record<number, number> = {};
+    for (let h = 0; h < 24; h++) hourlyCounts[h] = 0;
+    for (const event of recentEvents) {
+      const hour = new Date(event.createdAt).getHours();
+      hourlyCounts[hour] = (hourlyCounts[hour] || 0) + 1;
+    }
+
+    // 3. Device & Browser Breakdown
+    const deviceBreakdown: Record<string, number> = { mobile: 0, desktop: 0, tablet: 0, unknown: 0 };
+    const browserBreakdown: Record<string, number> = {};
+    let memberEvents = 0;
+    let guestEvents = 0;
+    let macroViews = 0;
+    let shareClicks = 0;
+
+    for (const event of recentEvents) {
+      if (event.userId) memberEvents++;
+      else guestEvents++;
+
+      if (event.eventType === 'macro_tab_view' || event.eventType === 'nutrition_view') macroViews++;
+      if (event.eventType === 'share_click' || event.eventType === 'export_image' || event.eventType === 'share_line') shareClicks++;
+
+      if (event.metadata) {
+        try {
+          const meta = JSON.parse(event.metadata);
+          const dev = (meta.deviceType || meta.device || 'unknown').toLowerCase();
+          if (dev in deviceBreakdown) deviceBreakdown[dev]++;
+          else deviceBreakdown.unknown++;
+
+          const browser = meta.browser || 'other';
+          browserBreakdown[browser] = (browserBreakdown[browser] || 0) + 1;
+        } catch {
+          deviceBreakdown.unknown++;
+        }
+      } else {
+        deviceBreakdown.unknown++;
+      }
+    }
 
     return res.status(200).json({
       adminEmail: req.user.email,
@@ -212,9 +283,26 @@ router.get('/api/shabu/admin/stats', requireAuth, async (req: Request, res: Resp
         totalSessionsSaved: totalSessionsSaved || 0,
         totalCaloriesTracked: aggregateMacros._sum.totalCalories || 0,
         totalProteinTracked: aggregateMacros._sum.proteinG || 0,
+        totalTraysTracked: aggregateMacros._sum.totalTrays || 0,
+        avgCaloriesPerMeal: Math.round(aggregateMacros._avg.totalCalories || 0),
+        avgProteinPerMeal: Math.round(aggregateMacros._avg.proteinG || 0),
+        avgTraysPerMeal: Math.round((aggregateMacros._avg.totalTrays || 0) * 10) / 10,
+        avgCostPerMeal: Math.round(aggregateMacros._avg.costThb || 299),
+        guestVsMemberRatio: {
+          guest: guestEvents,
+          member: memberEvents,
+        },
+        featureEngagement: {
+          macroViews,
+          shareClicks,
+        },
       },
-      recentEvents,
-      recentSessions,
+      topDishes,
+      hourlyDistribution: hourlyCounts,
+      deviceBreakdown,
+      browserBreakdown,
+      recentEvents: recentEvents.slice(0, 50),
+      recentSessions: recentSessions.slice(0, 20),
     });
   } catch (error) {
     console.error('Admin stats error:', error);
