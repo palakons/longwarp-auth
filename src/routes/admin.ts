@@ -507,15 +507,26 @@ router.get('/admin', async (req: Request, res: Response) => {
               <tr><td colspan="4" style="text-align:center; color:var(--text-muted);">Loading sessions...</td></tr>
             </tbody>
           </table>
-    <!-- 5. User Feedback Panel -->
-    <div style="margin-top: 28px;">
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">💬 User Feedback & Suggestions</div>
-          <div class="panel-count" id="count-feedback">0 reviews</div>
         </div>
-        <div id="list-feedback" style="display: flex; flex-direction: column; gap: 12px; max-height: 380px; overflow-y: auto;">
-          <p style="color:var(--text-muted); font-size:13px;">Loading feedback...</p>
+      </div>
+    </div>
+
+    <!-- 5. Standalone User Feedback Box -->
+    <div style="margin-top: 36px; margin-bottom: 30px;">
+      <div class="section-title">User Feedback & Community Suggestions</div>
+      <div class="panel" style="background: rgba(18, 24, 33, 0.95); border: 1px solid rgba(88, 166, 255, 0.25); box-shadow: 0 8px 30px rgba(0,0,0,0.35);">
+        <div class="panel-header" style="margin-bottom: 20px;">
+          <div>
+            <div class="panel-title" style="font-size: 17px; display: flex; align-items: center; gap: 8px;">
+              <span>💬 User Feedback & Suggestions</span>
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Direct reviews, feature requests, and bug reports from diners</p>
+          </div>
+          <div class="panel-count" id="count-feedback" style="background: rgba(88, 166, 255, 0.15); color: var(--accent); font-weight: 700; padding: 4px 12px; font-size: 13px;">0 reviews</div>
+        </div>
+
+        <div id="list-feedback" style="display: flex; flex-direction: column; gap: 14px; max-height: 480px; overflow-y: auto; padding-right: 4px;">
+          <p style="color:var(--text-muted); font-size:13px; text-align: center; padding: 20px;">Loading feedback...</p>
         </div>
       </div>
     </div>
