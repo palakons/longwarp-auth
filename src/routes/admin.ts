@@ -213,8 +213,14 @@ router.get('/admin', async (req: Request, res: Response) => {
       cursor: pointer;
       font-size: 13px;
       transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
     .btn-refresh:hover { background: rgba(88, 166, 255, 0.25); }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    .spinning { display: inline-block; animation: spin 0.7s linear infinite; }
+    .last-updated { font-size: 11px; color: var(--text-muted); }
     .btn-logout {
       background: transparent;
       border: 1px solid var(--border);
@@ -366,7 +372,8 @@ router.get('/admin', async (req: Request, res: Response) => {
           ${user.avatarUrl ? `<img src="${user.avatarUrl}" class="avatar" alt="Avatar">` : ''}
           <span>${user.email}</span>
         </div>
-        <button class="btn-refresh" onclick="loadStats()">↻ Refresh</button>
+        <span class="last-updated" id="last-updated-text">Live</span>
+        <button class="btn-refresh" id="btn-refresh" onclick="refreshAll()"><span id="refresh-icon">↻</span> Refresh</button>
         <button class="btn-logout" onclick="logout()">Sign Out</button>
       </div>
     </header>
@@ -700,13 +707,39 @@ router.get('/admin', async (req: Request, res: Response) => {
       window.location.reload();
     }
 
+    async function refreshAll() {
+      const btn = document.getElementById('btn-refresh');
+      const icon = document.getElementById('refresh-icon');
+      const statusText = document.getElementById('last-updated-text');
+
+      if (icon) icon.classList.add('spinning');
+      if (btn) btn.style.pointerEvents = 'none';
+
+      try {
+        await Promise.all([loadStats(), loadFeedback()]);
+        const timeStr = new Date().toLocaleTimeString();
+        if (statusText) statusText.innerText = 'Updated ' + timeStr;
+        if (btn) {
+          btn.style.borderColor = 'rgba(63, 185, 80, 0.6)';
+          btn.style.color = '#3fb950';
+        }
+      } catch (err) {
+        console.error('Refresh error:', err);
+      } finally {
+        setTimeout(() => {
+          if (icon) icon.classList.remove('spinning');
+          if (btn) {
+            btn.style.borderColor = 'rgba(88, 166, 255, 0.4)';
+            btn.style.color = 'var(--accent)';
+            btn.style.pointerEvents = 'auto';
+          }
+        }, 600);
+      }
+    }
+
     // Initial load and 10s auto-refresh
-    loadStats();
-    loadFeedback();
-    setInterval(() => {
-      loadStats();
-      loadFeedback();
-    }, 10000);
+    refreshAll();
+    setInterval(refreshAll, 10000);
   </script>
 </body>
 </html>
